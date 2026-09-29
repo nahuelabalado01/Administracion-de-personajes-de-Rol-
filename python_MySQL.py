@@ -17,6 +17,7 @@ def inicializar_db():
                 CREATE TABLE IF NOT EXISTS personajes (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     nombre TEXT NOT NULL,
+                    raza TEXT NOT NULL DEFAULT 'Humano',
                     fuerza INTEGER NOT NULL,
                     destreza INTEGER NOT NULL,
                     constitucion INTEGER NOT NULL,
@@ -26,6 +27,14 @@ def inicializar_db():
                 )
                 """
             )
+            columnas = {
+                columna[1]
+                for columna in conexion.execute("PRAGMA table_info(personajes)")
+            }
+            if "raza" not in columnas:
+                conexion.execute(
+                    "ALTER TABLE personajes ADD COLUMN raza TEXT NOT NULL DEFAULT 'Humano'"
+                )
 
 
 def obtener_personajes():
@@ -33,7 +42,7 @@ def obtener_personajes():
         conexion.row_factory = sqlite3.Row
         return conexion.execute(
             """
-            SELECT id, nombre, fuerza, destreza, constitucion,
+            SELECT id, nombre, raza, fuerza, destreza, constitucion,
                    sabiduria, inteligencia, carisma
             FROM personajes
             ORDER BY id
@@ -47,9 +56,9 @@ def insertar_personaje(datos):
             conexion.execute(
                 """
                 INSERT INTO personajes (
-                    nombre, fuerza, destreza, constitucion,
+                    nombre, raza, fuerza, destreza, constitucion,
                     sabiduria, inteligencia, carisma
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 datos,
             )
@@ -61,7 +70,7 @@ def actualizar_personaje(personaje_id, datos):
             conexion.execute(
                 """
                 UPDATE personajes
-                SET nombre = ?, fuerza = ?, destreza = ?, constitucion = ?,
+                SET nombre = ?, raza = ?, fuerza = ?, destreza = ?, constitucion = ?,
                     sabiduria = ?, inteligencia = ?, carisma = ?
                 WHERE id = ?
                 """,
@@ -76,31 +85,57 @@ def borrar_personaje(personaje_id):
 
 
 def cambioValor(gen):
-    gen = str(gen).strip()
-    if gen == "1":
-        return "-5"
-    elif gen == "2" or gen == "3":
-        return "-4"
-    elif gen == "4" or gen == "5":
-        return "-3"
-    elif gen == "6" or gen == "7":
-        return "-2"
-    elif gen == "8" or gen == "9":
-        return "-1"
-    elif gen == "10" or gen == "11":
-        return "+0"
-    elif gen == "12" or gen == "13":
-        return "+1"
-    elif gen == "14" or gen == "15":
-        return "+2"
-    elif gen == "16" or gen == "17":
-        return "+3"
-    elif gen == "18" or gen == "19":
-        return "+4"
-    elif gen == "20":
-        return "+5"
-    else:
+    try:
+        gen = int(str(gen).strip())
+    except ValueError:
         return ""
+    return f"{(gen - 10) // 2:+d}"
+
+def Mejora_Valor(gen, raza, clase, atributo):
+    bonificaciones = {
+        "Fuerza": {
+            "Enano De las Montañas": 2,
+            "Humano": 1,
+            "Draconido": 2,
+            "Semiorco": 2,
+        },
+        "Destreza": {
+            "Elfo": 2,
+            "Humano": 1,
+            "Mediano": 2,
+            "Gnomo del Bosque": 1,
+        },
+        "Constitucion": {
+            "Gnomo de las Rocas": 1,
+            "Humano": 1,
+            "Enano": 2,
+            "Semiorco": 1,
+            "Mediano Fornido": 1,
+        },
+        "Sabiduria": {
+            "Humano": 1,
+            "Elfo del Bosque": 1,
+            "Enano de las Colinas": 1,
+        },
+        "Inteligencia": {
+            "Humano": 1,
+            "Elfo Alto": 1,
+            "Gnomo": 2,
+            "Tiefling": 1,
+        },
+        "Carisma": {
+            "Humano": 1,
+            "Tiefling": 2,
+            "Draconido": 1,
+            "Mediano pies ligeros": 1,
+            "Semielfo": 2,
+            "Drow": 1,
+        },
+    }
+    valor = int(gen)
+    bonificacion = bonificaciones.get(atributo, {}).get(raza, 0)
+    return valor + bonificacion
+
 
 class FormularioClientes():
 
@@ -124,13 +159,44 @@ class FormularioClientes():
         Label(grupBox, text="Nombre:", width=13, font=("Times New Roman",12)).grid(row=0, column=0)
         texBoxId = Entry(grupBox)
         texBoxId.grid(row=0, column=1, padx=5, pady=5)
+
+        Label(grupBox, text="Raza:", width=13, font=("Times New Roman",12)).grid(row=0, column=2)
+        seleccionRaza = tk.StringVar(value="Humano")
+        razas = (
+            "Draconido",
+            "Drow",
+            "Elfo",
+            "Elfo Alto",
+            "Elfo del Bosque",
+            "Enano",
+            "Enano De las Montañas",
+            "Enano de las Colinas",
+            "Gnomo",
+            "Gnomo de las Rocas",
+            "Gnomo del Bosque",
+            "Humano",
+            "Mediano",
+            "Mediano Fornido",
+            "Mediano pies ligeros",
+            "Semielfo",
+            "Semiorco",
+            "Tiefling",
+        )
+        comboRaza = ttk.Combobox(
+            grupBox,
+            values=razas,
+            textvariable=seleccionRaza,
+            state="readonly",
+            width=22,
+        )
+        comboRaza.grid(row=0, column=3, padx=5, pady=5)
             
         # --- Fuerza ---
         Label(grupBox, text="Fuerza", width=13, font=("Times New Roman",12)).grid(row=1, column=0)
         seleccionFuerza = tk.StringVar(value="10")
         comboF = ttk.Combobox(grupBox, values=[str(i) for i in range(1, 21)], textvariable=seleccionFuerza)
         comboF.grid(row=1, column=1, padx=5, pady=5)
-        labelMejoraF = Label(grupBox, text=cambioValor(seleccionFuerza.get()), width=13, font=("Times New Roman",12))
+        labelMejoraF = Label(grupBox, text="", width=13, font=("Times New Roman",12))
         labelMejoraF.grid(row=1, column=3)
 
         # --- Destreza ---
@@ -138,7 +204,7 @@ class FormularioClientes():
         seleccionDestreza = tk.StringVar(value="10")
         comboD = ttk.Combobox(grupBox, values=[str(i) for i in range(1, 21)], textvariable=seleccionDestreza)
         comboD.grid(row=2, column=1, padx=5, pady=5)
-        labelMejoraD = Label(grupBox, text=cambioValor(seleccionDestreza.get()), width=13, font=("Times New Roman",12))
+        labelMejoraD = Label(grupBox, text="", width=13, font=("Times New Roman",12))
         labelMejoraD.grid(row=2, column=3)
 
         # --- Constitucion ---
@@ -146,7 +212,7 @@ class FormularioClientes():
         seleccionConstitucion = tk.StringVar(value="10")
         comboC = ttk.Combobox(grupBox, values=[str(i) for i in range(1, 21)], textvariable=seleccionConstitucion)
         comboC.grid(row=3, column=1, padx=5, pady=5)
-        labelMejoraC = Label(grupBox, text=cambioValor(seleccionConstitucion.get()), width=13, font=("Times New Roman",12))
+        labelMejoraC = Label(grupBox, text="", width=13, font=("Times New Roman",12))
         labelMejoraC.grid(row=3, column=3)
 
         # --- Sabiduria ---
@@ -154,7 +220,7 @@ class FormularioClientes():
         seleccionSabiduria = tk.StringVar(value="10")
         comboS = ttk.Combobox(grupBox, values=[str(i) for i in range(1, 21)], textvariable=seleccionSabiduria)
         comboS.grid(row=4, column=1, padx=5, pady=5)
-        labelMejoraS = Label(grupBox, text=cambioValor(seleccionSabiduria.get()), width=13, font=("Times New Roman",12))
+        labelMejoraS = Label(grupBox, text="", width=13, font=("Times New Roman",12))
         labelMejoraS.grid(row=4, column=3)
 
         # --- inteligencia ---
@@ -162,7 +228,7 @@ class FormularioClientes():
         seleccionInteligencia = tk.StringVar(value="10")
         comboI = ttk.Combobox(grupBox, values=[str(i) for i in range(1, 21)], textvariable=seleccionInteligencia)
         comboI.grid(row=5, column=1, padx=5, pady=5)
-        labelMejoraI = Label(grupBox, text=cambioValor(seleccionInteligencia.get()), width=13, font=("Times New Roman",12))
+        labelMejoraI = Label(grupBox, text="", width=13, font=("Times New Roman",12))
         labelMejoraI.grid(row=5, column=3)
 
         # --- Carisma ---
@@ -170,35 +236,30 @@ class FormularioClientes():
         seleccionCarisma = tk.StringVar(value="10")
         comboCh = ttk.Combobox(grupBox, values=[str(i) for i in range(1, 21)], textvariable=seleccionCarisma)
         comboCh.grid(row=6, column=1, padx=5, pady=5)
-        labelMejoraCh = Label(grupBox, text=cambioValor(seleccionCarisma.get()), width=13, font=("Times New Roman",12))
+        labelMejoraCh = Label(grupBox, text="", width=13, font=("Times New Roman",12))
         labelMejoraCh.grid(row=6, column=3)
 
 
-        # --- Funciones de actualización ---
-        def actualizar_fuerza(event):
-            labelMejoraF.config(text=cambioValor(seleccionFuerza.get()))
+        variables_mejora = (
+            (seleccionFuerza, labelMejoraF, "Fuerza"),
+            (seleccionDestreza, labelMejoraD, "Destreza"),
+            (seleccionConstitucion, labelMejoraC, "Constitucion"),
+            (seleccionSabiduria, labelMejoraS, "Sabiduria"),
+            (seleccionInteligencia, labelMejoraI, "Inteligencia"),
+            (seleccionCarisma, labelMejoraCh, "Carisma"),
+        )
 
-        def actualizar_destreza(event):
-            labelMejoraD.config(text=cambioValor(seleccionDestreza.get()))
+        def actualizar_mejoras(event=None):
+            for variable, etiqueta, atributo in variables_mejora:
+                valor = Mejora_Valor(
+                    variable.get(), seleccionRaza.get(), "", atributo
+                )
+                etiqueta.config(text=f"{valor} ({cambioValor(valor)})")
 
-        def actualizar_Constitucion(event):
-            labelMejoraC.config(text=cambioValor(seleccionConstitucion.get()))
-
-        def actualizar_sabiduria(event):
-            labelMejoraS.config(text=cambioValor(seleccionSabiduria.get()))
-
-        def actualizar_inteligencia(event):
-            labelMejoraI.config(text=cambioValor(seleccionInteligencia.get()))
-
-        def actualizar_Carisma(event):
-            labelMejoraCh.config(text=cambioValor(seleccionCarisma.get()))
-
-        comboC.bind("<<ComboboxSelected>>", actualizar_Constitucion)
-        comboF.bind("<<ComboboxSelected>>", actualizar_fuerza)
-        comboD.bind("<<ComboboxSelected>>", actualizar_destreza)
-        comboCh.bind("<<ComboboxSelected>>", actualizar_Carisma)
-        comboI.bind("<<ComboboxSelected>>", actualizar_inteligencia)
-        comboS.bind("<<ComboboxSelected>>", actualizar_sabiduria)
+        comboRaza.bind("<<ComboboxSelected>>", actualizar_mejoras)
+        for combo in (comboF, comboD, comboC, comboS, comboI, comboCh):
+            combo.bind("<<ComboboxSelected>>", actualizar_mejoras)
+        actualizar_mejoras()
 
 
         registro_seleccionado = {"id": None}
@@ -218,7 +279,7 @@ class FormularioClientes():
         # --- Treeview ---
         tree = ttk.Treeview(
             frame_tabla,
-            columns=("Nombre", "Fuerza","Destreza","Constitucion","Sabiduria","Inteligencia","Carisma"),
+            columns=("Nombre", "Raza", "Fuerza","Destreza","Constitucion","Sabiduria","Inteligencia","Carisma"),
             show='headings',
             height=10,
             yscrollcommand=scroll_y.set,
@@ -234,12 +295,23 @@ class FormularioClientes():
         tree.pack(fill="both", expand=True)
 
         # --- Configurar columnas ---
-        for col in ("Nombre", "Fuerza","Destreza","Constitucion","Sabiduria","Inteligencia","Carisma"):
+        anchos_columnas = {
+            "Nombre": 110,
+            "Raza": 100,
+            "Fuerza": 60,
+            "Destreza": 70,
+            "Constitucion": 85,
+            "Sabiduria": 75,
+            "Inteligencia": 85,
+            "Carisma": 65,
+        }
+        for col, ancho in anchos_columnas.items():
             tree.heading(col, text=col)
-            tree.column(col, width=120, anchor="center")
+            tree.column(col, width=ancho, minwidth=ancho, stretch=False, anchor="center")
 
         def obtener_datos_formulario():
             nombre = texBoxId.get().strip()
+            raza = seleccionRaza.get()
             atributos = (
                 seleccionFuerza.get(),
                 seleccionDestreza.get(),
@@ -251,8 +323,8 @@ class FormularioClientes():
             if not nombre:
                 messagebox.showwarning("Dato requerido", "Ingresa el nombre del personaje.", parent=base)
                 return None
-            if any(not atributo for atributo in atributos):
-                messagebox.showwarning("Dato requerido", "Selecciona todos los atributos.", parent=base)
+            if not raza or any(not atributo for atributo in atributos):
+                messagebox.showwarning("Dato requerido", "Selecciona una raza y todos los atributos.", parent=base)
                 return None
             try:
                 valores = tuple(int(atributo) for atributo in atributos)
@@ -262,11 +334,12 @@ class FormularioClientes():
             if any(not 1 <= valor <= 20 for valor in valores):
                 messagebox.showwarning("Dato inválido", "Los atributos deben estar entre 1 y 20.", parent=base)
                 return None
-            return (nombre, *valores)
+            return (nombre, raza, *valores)
 
         def limpiar_formulario():
             registro_seleccionado["id"] = None
             texBoxId.delete(0, END)
+            seleccionRaza.set("Humano")
             for seleccion in (
                 seleccionFuerza,
                 seleccionDestreza,
@@ -276,8 +349,7 @@ class FormularioClientes():
                 seleccionCarisma,
             ):
                 seleccion.set("10")
-            for etiqueta in (labelMejoraF, labelMejoraD, labelMejoraC, labelMejoraS, labelMejoraI, labelMejoraCh):
-                etiqueta.config(text=cambioValor("10"))
+            actualizar_mejoras()
 
         def refrescar_tabla():
             for elemento in tree.get_children():
@@ -290,6 +362,7 @@ class FormularioClientes():
                         iid=str(personaje["id"]),
                         values=(
                             personaje["nombre"],
+                            personaje["raza"],
                             personaje["fuerza"],
                             personaje["destreza"],
                             personaje["constitucion"],
@@ -311,6 +384,7 @@ class FormularioClientes():
             valores = tree.item(seleccion[0], "values")
             texBoxId.delete(0, END)
             texBoxId.insert(0, valores[0])
+            seleccionRaza.set(valores[1])
             for variable, valor in zip(
                 (
                     seleccionFuerza,
@@ -320,21 +394,10 @@ class FormularioClientes():
                     seleccionInteligencia,
                     seleccionCarisma,
                 ),
-                valores[1:],
+                valores[2:],
             ):
                 variable.set(valor)
-            for etiqueta, variable in zip(
-                (labelMejoraF, labelMejoraD, labelMejoraC, labelMejoraS, labelMejoraI, labelMejoraCh),
-                (
-                    seleccionFuerza,
-                    seleccionDestreza,
-                    seleccionConstitucion,
-                    seleccionSabiduria,
-                    seleccionInteligencia,
-                    seleccionCarisma,
-                ),
-            ):
-                etiqueta.config(text=cambioValor(variable.get()))
+            actualizar_mejoras()
 
         def guardar_personaje():
             datos = obtener_datos_formulario()
