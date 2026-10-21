@@ -18,6 +18,7 @@ def inicializar_db():
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     nombre TEXT NOT NULL,
                     raza TEXT NOT NULL DEFAULT 'Humano',
+                    clase TEXT NOT NULL DEFAULT 'Guerrero',
                     fuerza INTEGER NOT NULL,
                     destreza INTEGER NOT NULL,
                     constitucion INTEGER NOT NULL,
@@ -35,6 +36,10 @@ def inicializar_db():
                 conexion.execute(
                     "ALTER TABLE personajes ADD COLUMN raza TEXT NOT NULL DEFAULT 'Humano'"
                 )
+            if "clase" not in columnas:
+                conexion.execute(
+                    "ALTER TABLE personajes ADD COLUMN clase TEXT NOT NULL DEFAULT 'Guerrero'"
+                )
 
 
 def obtener_personajes():
@@ -42,7 +47,7 @@ def obtener_personajes():
         conexion.row_factory = sqlite3.Row
         return conexion.execute(
             """
-            SELECT id, nombre, raza, fuerza, destreza, constitucion,
+            SELECT id, nombre, raza, clase, fuerza, destreza, constitucion,
                    sabiduria, inteligencia, carisma
             FROM personajes
             ORDER BY id
@@ -56,9 +61,9 @@ def insertar_personaje(datos):
             conexion.execute(
                 """
                 INSERT INTO personajes (
-                    nombre, raza, fuerza, destreza, constitucion,
+                    nombre, raza, clase, fuerza, destreza, constitucion,
                     sabiduria, inteligencia, carisma
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 datos,
             )
@@ -70,7 +75,7 @@ def actualizar_personaje(personaje_id, datos):
             conexion.execute(
                 """
                 UPDATE personajes
-                SET nombre = ?, raza = ?, fuerza = ?, destreza = ?, constitucion = ?,
+                SET nombre = ?, raza = ?, clase = ?, fuerza = ?, destreza = ?, constitucion = ?,
                     sabiduria = ?, inteligencia = ?, carisma = ?
                 WHERE id = ?
                 """,
@@ -142,7 +147,7 @@ class FormularioClientes():
     @staticmethod
     def Formulario():
         base = Tk()
-        base.geometry("1400x500")
+        base.geometry("1200x700")
         base.title("Formulario")
 
         try:
@@ -151,8 +156,35 @@ class FormularioClientes():
             messagebox.showerror("Error de base de datos", str(error), parent=base)
             base.destroy()
             return
-            
-        grupBox = LabelFrame(base, text="Datos del PERSONAJE", font=("Times New Roman",15), padx=5, pady=5)
+
+        contenedor = Frame(base)
+        contenedor.pack(fill="both", expand=True)
+
+        canvas = Canvas(contenedor, highlightthickness=0)
+        scroll_vertical = Scrollbar(
+            contenedor, orient=VERTICAL, command=canvas.yview
+        )
+        scroll_horizontal = Scrollbar(
+            contenedor, orient=HORIZONTAL, command=canvas.xview
+        )
+        canvas.configure(
+            yscrollcommand=scroll_vertical.set,
+            xscrollcommand=scroll_horizontal.set,
+        )
+        canvas.grid(row=0, column=0, sticky="nsew")
+        scroll_vertical.grid(row=0, column=1, sticky="ns")
+        scroll_horizontal.grid(row=1, column=0, sticky="ew")
+        contenedor.grid_rowconfigure(0, weight=1)
+        contenedor.grid_columnconfigure(0, weight=1)
+
+        contenido = Frame(canvas)
+        canvas.create_window((0, 0), window=contenido, anchor="nw")
+        contenido.bind(
+            "<Configure>",
+            lambda event: canvas.configure(scrollregion=canvas.bbox("all")),
+        )
+
+        grupBox = LabelFrame(contenido, text="Datos del PERSONAJE", font=("Times New Roman",15), padx=5, pady=5)
         grupBox.grid(row=0, column=0, padx=10, pady=10)
         formularioBox = grupBox
                 
@@ -190,6 +222,31 @@ class FormularioClientes():
             width=22,
         )
         comboRaza.grid(row=0, column=3, padx=5, pady=5)
+
+        Label(grupBox, text="Clase:", width=13, font=("Times New Roman",12)).grid(row=0, column=4)
+        seleccionClase = tk.StringVar(value="Guerrero")
+        clases = (
+            "Bárbaro",
+            "Bardo",
+            "Brujo",
+            "Clérigo",
+            "Druida",
+            "Explorador",
+            "Guerrero",
+            "Hechicero",
+            "Mago",
+            "Monje",
+            "Paladín",
+            "Pícaro",
+        )
+        comboClase = ttk.Combobox(
+            grupBox,
+            values=clases,
+            textvariable=seleccionClase,
+            state="readonly",
+            width=18,
+        )
+        comboClase.grid(row=0, column=5, padx=5, pady=5)
             
         # --- Fuerza ---
         Label(grupBox, text="Fuerza", width=13, font=("Times New Roman",12)).grid(row=1, column=0)
@@ -265,7 +322,7 @@ class FormularioClientes():
         registro_seleccionado = {"id": None}
 
         # --- Listas ---
-        grupBox = LabelFrame(base, text="Lista de PERSONAJES", font=("Times New Roman",15), padx=5, pady=5)
+        grupBox = LabelFrame(contenido, text="Lista de PERSONAJES", font=("Times New Roman",15), padx=5, pady=5)
         grupBox.grid(row=0, column=1, padx=10, pady=10)
 
         # --- Frame contenedor ---
@@ -279,7 +336,7 @@ class FormularioClientes():
         # --- Treeview ---
         tree = ttk.Treeview(
             frame_tabla,
-            columns=("Nombre", "Raza", "Fuerza","Destreza","Constitucion","Sabiduria","Inteligencia","Carisma"),
+            columns=("Nombre", "Raza", "Clase", "Fuerza","Destreza","Constitucion","Sabiduria","Inteligencia","Carisma"),
             show='headings',
             height=10,
             yscrollcommand=scroll_y.set,
@@ -298,6 +355,7 @@ class FormularioClientes():
         anchos_columnas = {
             "Nombre": 110,
             "Raza": 100,
+            "Clase": 100,
             "Fuerza": 60,
             "Destreza": 70,
             "Constitucion": 85,
@@ -312,6 +370,7 @@ class FormularioClientes():
         def obtener_datos_formulario():
             nombre = texBoxId.get().strip()
             raza = seleccionRaza.get()
+            clase = seleccionClase.get()
             atributos = (
                 seleccionFuerza.get(),
                 seleccionDestreza.get(),
@@ -323,8 +382,8 @@ class FormularioClientes():
             if not nombre:
                 messagebox.showwarning("Dato requerido", "Ingresa el nombre del personaje.", parent=base)
                 return None
-            if not raza or any(not atributo for atributo in atributos):
-                messagebox.showwarning("Dato requerido", "Selecciona una raza y todos los atributos.", parent=base)
+            if not raza or not clase or any(not atributo for atributo in atributos):
+                messagebox.showwarning("Dato requerido", "Selecciona una raza, una clase y todos los atributos.", parent=base)
                 return None
             try:
                 valores = tuple(int(atributo) for atributo in atributos)
@@ -334,12 +393,13 @@ class FormularioClientes():
             if any(not 1 <= valor <= 20 for valor in valores):
                 messagebox.showwarning("Dato inválido", "Los atributos deben estar entre 1 y 20.", parent=base)
                 return None
-            return (nombre, raza, *valores)
+            return (nombre, raza, clase, *valores)
 
         def limpiar_formulario():
             registro_seleccionado["id"] = None
             texBoxId.delete(0, END)
             seleccionRaza.set("Humano")
+            seleccionClase.set("Guerrero")
             for seleccion in (
                 seleccionFuerza,
                 seleccionDestreza,
@@ -363,6 +423,7 @@ class FormularioClientes():
                         values=(
                             personaje["nombre"],
                             personaje["raza"],
+                            personaje["clase"],
                             personaje["fuerza"],
                             personaje["destreza"],
                             personaje["constitucion"],
@@ -385,6 +446,7 @@ class FormularioClientes():
             texBoxId.delete(0, END)
             texBoxId.insert(0, valores[0])
             seleccionRaza.set(valores[1])
+            seleccionClase.set(valores[2])
             for variable, valor in zip(
                 (
                     seleccionFuerza,
@@ -394,7 +456,7 @@ class FormularioClientes():
                     seleccionInteligencia,
                     seleccionCarisma,
                 ),
-                valores[2:],
+                valores[3:],
             ):
                 variable.set(valor)
             actualizar_mejoras()
@@ -450,3 +512,4 @@ class FormularioClientes():
 
 if __name__ == "__main__":
     FormularioClientes.Formulario()
+
