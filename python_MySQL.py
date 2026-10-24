@@ -96,8 +96,7 @@ def cambioValor(gen):
         return ""
     return f"{(gen - 10) // 2:+d}"
 
-def Mejora_Valor(gen, raza, clase, atributo):
-    bonificaciones = {
+bonificaciones = {
         "Fuerza": {
             "Enano De las Montañas": 2,
             "Humano": 1,
@@ -137,6 +136,10 @@ def Mejora_Valor(gen, raza, clase, atributo):
             "Drow": 1,
         },
     }
+
+
+
+def Mejora_Valor(gen, raza, clase, atributo):
     valor = int(gen)
     bonificacion = bonificaciones.get(atributo, {}).get(raza, 0)
     return valor + bonificacion
@@ -305,6 +308,34 @@ class FormularioClientes():
             (seleccionInteligencia, labelMejoraI, "Inteligencia"),
             (seleccionCarisma, labelMejoraCh, "Carisma"),
         )
+        
+        def actualizar_rangos(event=None):
+            raza = seleccionRaza.get()
+
+            atributos = (
+                (comboF, "Fuerza"),
+                (comboD, "Destreza"),
+                (comboC, "Constitucion"),
+                (comboS, "Sabiduria"),
+                (comboI, "Inteligencia"),
+                (comboCh, "Carisma")
+            )
+
+            for combo, atributo in atributos:
+                bonificador = bonificaciones.get(atributo, {}).get(raza, 0)
+                maximo = 20 - bonificador
+
+                combo["values"] = [str(i) for i in range(1, maximo + 1)]
+
+                try:
+                    valor_actual = int(combo.get())
+                except ValueError:
+                    valor_actual = 10
+
+                if valor_actual > maximo:
+                    combo.set(str(maximo))
+                elif valor_actual < 1:
+                    combo.set("1")
 
         def actualizar_mejoras(event=None):
             for variable, etiqueta, atributo in variables_mejora:
@@ -312,11 +343,15 @@ class FormularioClientes():
                     variable.get(), seleccionRaza.get(), "", atributo
                 )
                 etiqueta.config(text=f"{valor} ({cambioValor(valor)})")
+        
+        def cambiar_raza(event=None):
+            actualizar_rangos()
+            actualizar_mejoras()
 
-        comboRaza.bind("<<ComboboxSelected>>", actualizar_mejoras)
+        comboRaza.bind("<<ComboboxSelected>>", cambiar_raza)
         for combo in (comboF, comboD, comboC, comboS, comboI, comboCh):
             combo.bind("<<ComboboxSelected>>", actualizar_mejoras)
-        actualizar_mejoras()
+        
 
 
         registro_seleccionado = {"id": None}
@@ -459,6 +494,7 @@ class FormularioClientes():
                 valores[3:],
             ):
                 variable.set(valor)
+            actualizar_rangos()
             actualizar_mejoras()
 
         def guardar_personaje():
